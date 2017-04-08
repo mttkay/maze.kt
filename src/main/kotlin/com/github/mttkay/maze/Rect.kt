@@ -1,6 +1,6 @@
 package com.github.mttkay.maze
 
-data class Rect(val x: Int, val y: Int, val width: Int, val height: Int) : Iterable<Vec> {
+internal data class Rect(val x: Int, val y: Int, val width: Int, val height: Int) : Iterable<Vec> {
 
   private val pos = Vec(x, y)
   private val size = Vec(width, height)

@@ -1,33 +1,34 @@
 import com.github.mttkay.maze.Maze
-import com.github.mttkay.maze.Stage
+import com.github.mttkay.maze.MazeView
 import com.github.mttkay.maze.Tile
-import com.github.mttkay.maze.Vec
 
 fun main(vararg args: String) {
 
-  val stage = TestStage(width = 51, height = 31)
+  val width = 51
+  val height = 31
 
-  Maze().generate(stage)
+  val view = TestMazeView(width, height)
 
-  // render stage
-  AsciiRenderer().render(stage)
+  Maze(view).generate()
+
+  AsciiRenderer().render(view)
 }
 
-class TestStage(override val width: Int, override val height: Int) : Stage {
+private class TestMazeView(override val width: Int, override val height: Int) : MazeView {
 
   // models a rectangular stage in column major order
   private val tiles: Array<Array<Tile>> = Array(width) { Array(height) { Tile.WALL } }
 
-  override fun getTile(pos: Vec): Tile {
-    require(pos.x < width) { "x (${pos.x}) must be smaller than width ($width)" }
-    require(pos.y < height) { "y (${pos.y}) must be smaller than height ($height)" }
-    return tiles[pos.x][pos.y]
+  override fun getTile(x: Int, y: Int): Tile {
+    require(x < width) { "x ($x) must be smaller than width ($width)" }
+    require(y < height) { "y ($y) must be smaller than height ($height)" }
+    return tiles[x][y]
   }
 
-  override fun setTile(pos: Vec, tile: Tile) {
-    require(pos.x < width) { "x (${pos.x}) must be smaller than width ($width)" }
-    require(pos.y < height) { "y (${pos.y}) must be smaller than height ($height)" }
-    tiles[pos.x][pos.y] = tile
+  override fun setTile(x: Int, y: Int, tile: Tile) {
+    require(x < width) { "x ($x) must be smaller than width ($width)" }
+    require(y < height) { "y ($y) must be smaller than height ($height)" }
+    tiles[x][y] = tile
   }
 
   override fun fill(tile: Tile) {
@@ -38,11 +39,11 @@ class TestStage(override val width: Int, override val height: Int) : Stage {
 
 class AsciiRenderer {
 
-  fun render(stage: Stage) {
+  fun render(mazeView: MazeView) {
 
-    for (row in 0 until stage.height) {
-      for (col in 0 until stage.width) {
-        val tile = stage.getTile(Vec(col, row))
+    for (row in 0 until mazeView.height) {
+      for (col in 0 until mazeView.width) {
+        val tile = mazeView.getTile(col, row)
         val sym: String = when (tile) {
           Tile.WALL -> "▦"
           Tile.FLOOR -> '◻'.toString()
@@ -51,7 +52,7 @@ class AsciiRenderer {
         }
         print(sym)
 
-        if (col == stage.width - 1) {
+        if (col == mazeView.width - 1) {
           println()
         }
       }

@@ -2,58 +2,57 @@ package com.github.mttkay.maze
 
 import java.util.*
 
-class Maze {
+class Maze(private val view: MazeView,
+           private val numRoomTries: Int = 200,
+           private val extraConnectorChance: Int = 0,
+           private val roomExtraSize: Int = 0,
+           private val windingPercent: Int = 0,
+           private val removeDeadEnds: Boolean = true) {
+
+  init {
+    require(view.width % 2 != 0 && view.height % 2 != 0) {
+      "The maze must be odd-sized."
+    }
+  }
+
+  private val bounds = Rect(0, 0, view.width, view.height)
 
   private val random = Random()
-
-  private val numRoomTries: Int = 200
-
-  /// The inverse chance of adding a connector between two regions that have
-  /// already been joined. Increasing this leads to more loosely connected
-  /// dungeons.
-  private val extraConnectorChance = 0
-
-  /// Increasing this allows rooms to be larger.
-  private val roomExtraSize = 0
-
-  private val windingPercent = 0
 
   private val rooms = mutableListOf<Rect>()
 
   /// For each open position in the dungeon, the index of the connected region
   /// that that position is a part of.
-  private lateinit var regions: Array2D<Int?>
+  private val regions: Array2D<Int?> = Array2D(view.width, view.height)
 
   /// The index of the current region being carved.
   private var currentRegion = -1
 
-  fun generate(stage: Stage) {
-    require(stage.width % 2 != 0 && stage.height % 2 != 0) {
-      "The stage must be odd-sized."
-    }
+  fun generate() {
+    // start with a solid map
+    view.fill(Tile.WALL)
 
-    val bounds = Rect(0, 0, stage.width, stage.height)
-
-    stage.fill(Tile.WALL)
-
-    regions = Array2D(stage.width, stage.height)
-
-    addRooms(stage, bounds)
+    // carve out rooms randomly
+    addRooms()
 
     // Fill in all of the empty space with mazes.
     (1 until bounds.height step 2).forEach { y ->
       (1 until bounds.width step 2)
-          .map { x -> Vec(x, y) }
-          .filter { stage.getTile(it) == Tile.WALL }
-          .forEach { growMaze(stage, it, bounds) }
+          .filter { x -> view.getTile(x, y) == Tile.WALL }
+          .forEach { x -> growMaze(Vec(x, y)) }
     }
 
-    connectRegions(stage, bounds)
-    removeDeadEnds(stage, bounds)
+    // carve random openings between corridors
+    connectRegions()
+
+    // simplify the maze
+    if (removeDeadEnds) {
+      removeDeadEnds()
+    }
   }
 
   /// Places rooms ignoring the existing maze corridors.
-  private fun addRooms(stage: Stage, bounds: Rect) {
+  private fun addRooms() {
     for (i in 0 until numRoomTries) {
       // Pick a random room size. The funny math here does two things:
       // - It makes sure rooms are odd-sized to line up with maze.
@@ -82,7 +81,7 @@ class Maze {
 
         startRegion()
         for (cell in room) {
-          carve(stage, cell)
+          carve(cell)
         }
       }
     }
@@ -90,9 +89,9 @@ class Maze {
 
   /// Implementation of the "growing tree" algorithm from here:
   /// http://www.astrolog.org/labyrnth/algrithm.htm.
-  private fun growMaze(stage: Stage, start: Vec, bounds: Rect) {
+  private fun growMaze(start: Vec) {
     startRegion()
-    carve(stage, start)
+    carve(start)
 
     val cells = mutableListOf(start)
     var lastDirection = Direction.NONE
@@ -102,7 +101,7 @@ class Maze {
 
       // See which adjacent cells are open.
       val possibleDirections = Direction.CARDINALS.filter { direction ->
-        canCarve(stage, cell, direction, bounds)
+        canCarve(cell, direction)
       }
 
       lastDirection = if (possibleDirections.isNotEmpty()) {
@@ -118,8 +117,8 @@ class Maze {
         val destinationCell = direction * 2 + cell
 
         // carve out two cells, with the second being our new point of reference
-        carve(stage, nextCell)
-        carve(stage, destinationCell)
+        carve(nextCell)
+        carve(destinationCell)
 
         cells.add(destinationCell)
 
@@ -135,9 +134,9 @@ class Maze {
     }
   }
 
-  private fun connectRegions(stage: Stage, bounds: Rect) {
+  private fun connectRegions() {
     // Find all of the WALL tiles that can connect two (or more) regions.
-    val connectorRegions = findRegionConnectors(bounds, stage)
+    val connectorRegions = findRegionConnectors()
 
     // Keep track of which regions have been merged. This maps an original
     // region index to the one it has been merged to;
@@ -156,7 +155,7 @@ class Maze {
       val connector = random.item(connectors)
 
       // Carve the connection.
-      addJunction(stage, connector)
+      addJunction(connector)
 
       // Merge the connected regions. We'll pick one region (arbitrarily) and
       // map all of the other regions to its index.
@@ -187,7 +186,7 @@ class Maze {
             // This connecter isn't needed, but connect it occasionally so that the
             // dungeon isn't singly-connected.
             if (random.oneIn(extraConnectorChance)) {
-              addJunction(stage, cell)
+              addJunction(cell)
             }
             true
           }
@@ -196,11 +195,11 @@ class Maze {
     }
   }
 
-  private fun findRegionConnectors(bounds: Rect, stage: Stage): MutableMap<Vec, Set<Int>> {
+  private fun findRegionConnectors(): MutableMap<Vec, Set<Int>> {
     val connectorRegions = mutableMapOf<Vec, Set<Int>>().withDefault { emptySet<Int>() }
     bounds.inflate(-1).forEach { cell ->
       // Can't already be part of a region.
-      if (stage.getTile(cell) == Tile.WALL) {
+      if (view.getTile(cell.x, cell.y) == Tile.WALL) {
         val regions = Direction.CARDINALS
             .mapNotNull { direction -> this.regions[direction + cell] }
 
@@ -212,34 +211,37 @@ class Maze {
     return connectorRegions
   }
 
-  private fun addJunction(stage: Stage, pos: Vec) {
+  private fun addJunction(pos: Vec) {
     if (random.oneIn(4)) {
-      stage.setTile(pos, if (random.oneIn(3)) Tile.OPEN_DOOR else Tile.FLOOR)
+      view.setTile(pos.x, pos.y, if (random.oneIn(3)) Tile.OPEN_DOOR else Tile.FLOOR)
     } else {
-      stage.setTile(pos, Tile.CLOSED_DOOR)
+      view.setTile(pos.x, pos.y, Tile.CLOSED_DOOR)
     }
   }
 
-  private fun removeDeadEnds(stage: Stage, bounds: Rect) {
+  private fun removeDeadEnds() {
     var done = false
 
     while (!done) {
       done = true
 
       for (cell in bounds.inflate(-1)) {
-        if (stage.getTile(cell) == Tile.WALL) {
+        if (view.getTile(cell.x, cell.y) == Tile.WALL) {
           continue
         }
 
         // If it only has one exit, it's a dead end.
-        val exits = Direction.CARDINALS.count { stage.getTile(cell + it.vec) != Tile.WALL }
+        val exits = Direction.CARDINALS.count {
+          val (x, y) = cell + it.vec
+          view.getTile(x, y) != Tile.WALL
+        }
 
         if (exits != 1) {
           continue
         }
 
         done = false
-        stage.setTile(cell, Tile.WALL)
+        view.setTile(cell.x, cell.y, Tile.WALL)
       }
     }
   }
@@ -248,20 +250,21 @@ class Maze {
   // cell to the adjacent cell facing direction. Returns `true`
   // if the starting cell is in bounds and the destination cell is filled
   // (or out of bounds).
-  private fun canCarve(stage: Stage, cell: Vec, direction: Direction, bounds: Rect): Boolean {
+  private fun canCarve(cell: Vec, direction: Direction): Boolean {
     // Must end in bounds.
     if (!bounds.containsPoint(cell + direction * 3)) {
       return false
     }
 
     // Destination must not be open.
-    return stage.getTile(cell + direction * 2) == Tile.WALL
+    val dest = cell + direction * 2
+    return view.getTile(dest.x, dest.y) == Tile.WALL
   }
 
   private fun startRegion() = currentRegion++
 
-  private fun carve(stage: Stage, pos: Vec) {
-    stage.setTile(pos, Tile.FLOOR)
+  private fun carve(pos: Vec) {
+    view.setTile(pos.x, pos.y, Tile.FLOOR)
     regions[pos] = currentRegion
   }
 }

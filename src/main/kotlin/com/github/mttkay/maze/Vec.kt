@@ -1,6 +1,6 @@
 package com.github.mttkay.maze
 
-data class Vec(val x: Int, val y: Int) {
+internal data class Vec(val x: Int, val y: Int) {
 
   val lengthSquared: Int get() = x * x + y * y
 

@@ -10,7 +10,7 @@ import java.util.*
 ///
 /// Internally, the elements are stored in a single contiguous list in row-major
 /// order.
-class Array2D<T>(val width: Int, val height: Int, value: T? = null) : MutableIterable<T?> {
+internal class Array2D<T>(val width: Int, val height: Int) : MutableIterable<T?> {
   override fun iterator(): MutableIterator<T?> = _elements.iterator()
 
   private val _elements: ArrayList<T?> = ArrayList(Collections.nCopies(width * height, null))
