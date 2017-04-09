@@ -8,6 +8,10 @@ class MazeBuilder(private val numRoomTries: Int = 200,
                   private val windingPercent: Int = 0,
                   private val removeDeadEnds: Boolean = true) {
 
+  // the maximum edge length of a room is currently 9,
+  // plus walls, plus extra room size per edge applied twice
+  private val minEdgeLength = 11 + roomExtraSize * 4
+
   private lateinit var maze: Maze
 
   private lateinit var bounds: Rect
@@ -24,8 +28,11 @@ class MazeBuilder(private val numRoomTries: Int = 200,
   private var currentRegion = -1
 
   fun build(target: Maze) {
+    require(target.width >= minEdgeLength && target.height >= minEdgeLength) {
+      "The maze must be at least ${minEdgeLength}x$minEdgeLength"
+    }
     require(target.width % 2 != 0 && target.height % 2 != 0) {
-      "The maze must be odd-sized."
+      "The maze must be odd-sized"
     }
     this.maze = target
     this.bounds = Rect(0, 0, maze.width, maze.height)
