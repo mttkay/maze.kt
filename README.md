@@ -7,7 +7,12 @@ with some refactors for reusability and language idiomacy.
 
 ## Use
 
-https://jitpack.io/#mttkay/maze.kt/
+Import from https://jitpack.io/#mttkay/maze.kt, then:
+
+```kotlin
+val maze = ArrayMaze(width = 31, height = 21)
+MazeBuilder().build(maze)
+```
 
 ## Run
 
