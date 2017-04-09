@@ -1,5 +1,7 @@
+
 import com.github.mttkay.maze.Maze
 import com.github.mttkay.maze.MazeView
+import com.github.mttkay.maze.StringRenderer
 import com.github.mttkay.maze.Tile
 
 fun main(vararg args: String) {
@@ -11,7 +13,7 @@ fun main(vararg args: String) {
 
   Maze(view).generate()
 
-  AsciiRenderer().render(view)
+  println(StringRenderer().render(view))
 }
 
 private class TestMazeView(override val width: Int, override val height: Int) : MazeView {
@@ -35,25 +37,4 @@ private class TestMazeView(override val width: Int, override val height: Int) : 
     tiles.forEach { column -> column.forEach { _ -> column.fill(tile) } }
   }
 
-}
-
-class AsciiRenderer {
-
-  fun render(mazeView: MazeView) {
-
-    for (row in 0 until mazeView.height) {
-      for (col in 0 until mazeView.width) {
-        val tile = mazeView.getTile(col, row)
-        val sym = when (tile) {
-          Tile.SOLID -> '◼'
-          Tile.OPEN -> '◻'
-        }
-        print(sym)
-
-        if (col == mazeView.width - 1) {
-          println()
-        }
-      }
-    }
-  }
 }
