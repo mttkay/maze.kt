@@ -30,7 +30,7 @@ class Maze(private val view: MazeView,
 
   fun generate() {
     // start with a solid map
-    view.fill(Tile.WALL)
+    view.fill(Tile.SOLID)
 
     // carve out rooms randomly
     addRooms()
@@ -38,7 +38,7 @@ class Maze(private val view: MazeView,
     // Fill in all of the empty space with mazes.
     (1 until bounds.height step 2).forEach { y ->
       (1 until bounds.width step 2)
-          .filter { x -> view.getTile(x, y) == Tile.WALL }
+          .filter { x -> view.getTile(x, y) == Tile.SOLID }
           .forEach { x -> growMaze(Vec(x, y)) }
     }
 
@@ -135,7 +135,7 @@ class Maze(private val view: MazeView,
   }
 
   private fun connectRegions() {
-    // Find all of the WALL tiles that can connect two (or more) regions.
+    // Find all of the SOLID tiles that can connect two (or more) regions.
     val connectorRegions = findRegionConnectors()
 
     // Keep track of which regions have been merged. This maps an original
@@ -155,7 +155,7 @@ class Maze(private val view: MazeView,
       val connector = random.item(connectors)
 
       // Carve the connection.
-      addJunction(connector)
+      carve(connector)
 
       // Merge the connected regions. We'll pick one region (arbitrarily) and
       // map all of the other regions to its index.
@@ -186,7 +186,7 @@ class Maze(private val view: MazeView,
             // This connecter isn't needed, but connect it occasionally so that the
             // dungeon isn't singly-connected.
             if (random.oneIn(extraConnectorChance)) {
-              addJunction(cell)
+              carve(cell)
             }
             true
           }
@@ -199,7 +199,7 @@ class Maze(private val view: MazeView,
     val connectorRegions = mutableMapOf<Vec, Set<Int>>().withDefault { emptySet<Int>() }
     bounds.inflate(-1).forEach { cell ->
       // Can't already be part of a region.
-      if (view.getTile(cell.x, cell.y) == Tile.WALL) {
+      if (view.getTile(cell.x, cell.y) == Tile.SOLID) {
         val regions = Direction.CARDINALS
             .mapNotNull { direction -> this.regions[direction + cell] }
 
@@ -211,14 +211,6 @@ class Maze(private val view: MazeView,
     return connectorRegions
   }
 
-  private fun addJunction(pos: Vec) {
-    if (random.oneIn(4)) {
-      view.setTile(pos.x, pos.y, if (random.oneIn(3)) Tile.OPEN_DOOR else Tile.FLOOR)
-    } else {
-      view.setTile(pos.x, pos.y, Tile.CLOSED_DOOR)
-    }
-  }
-
   private fun removeDeadEnds() {
     var done = false
 
@@ -226,14 +218,14 @@ class Maze(private val view: MazeView,
       done = true
 
       for (cell in bounds.inflate(-1)) {
-        if (view.getTile(cell.x, cell.y) == Tile.WALL) {
+        if (view.getTile(cell.x, cell.y) == Tile.SOLID) {
           continue
         }
 
         // If it only has one exit, it's a dead end.
         val exits = Direction.CARDINALS.count {
           val (x, y) = cell + it.vec
-          view.getTile(x, y) != Tile.WALL
+          view.getTile(x, y) != Tile.SOLID
         }
 
         if (exits != 1) {
@@ -241,7 +233,7 @@ class Maze(private val view: MazeView,
         }
 
         done = false
-        view.setTile(cell.x, cell.y, Tile.WALL)
+        view.setTile(cell.x, cell.y, Tile.SOLID)
       }
     }
   }
@@ -258,13 +250,13 @@ class Maze(private val view: MazeView,
 
     // Destination must not be open.
     val dest = cell + direction * 2
-    return view.getTile(dest.x, dest.y) == Tile.WALL
+    return view.getTile(dest.x, dest.y) == Tile.SOLID
   }
 
   private fun startRegion() = currentRegion++
 
   private fun carve(pos: Vec) {
-    view.setTile(pos.x, pos.y, Tile.FLOOR)
+    view.setTile(pos.x, pos.y, Tile.OPEN)
     regions[pos] = currentRegion
   }
 }

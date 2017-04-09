@@ -17,7 +17,7 @@ fun main(vararg args: String) {
 private class TestMazeView(override val width: Int, override val height: Int) : MazeView {
 
   // models a rectangular stage in column major order
-  private val tiles: Array<Array<Tile>> = Array(width) { Array(height) { Tile.WALL } }
+  private val tiles: Array<Array<Tile>> = Array(width) { Array(height) { Tile.SOLID } }
 
   override fun getTile(x: Int, y: Int): Tile {
     require(x < width) { "x ($x) must be smaller than width ($width)" }
@@ -44,11 +44,9 @@ class AsciiRenderer {
     for (row in 0 until mazeView.height) {
       for (col in 0 until mazeView.width) {
         val tile = mazeView.getTile(col, row)
-        val sym: String = when (tile) {
-          Tile.WALL -> "▦"
-          Tile.FLOOR -> '◻'.toString()
-          Tile.CLOSED_DOOR -> '◼'.toString()
-          Tile.OPEN_DOOR -> '◻'.toString()
+        val sym = when (tile) {
+          Tile.SOLID -> '◼'
+          Tile.OPEN -> '◻'
         }
         print(sym)
 
